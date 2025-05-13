@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3D AI Chatbot</title>
+  <style>
+    body { margin: 0; font-family: sans-serif; background: #111; color: white; }
+    #scene { width: 100%; height: 60vh; display: block; }
+    #chat {
+      width: 100%;
+      max-width: 600px;
+      margin: 20px auto;
+      display: flex;
+      flex-direction: column;
+    }
+    #messages {
+      height: 300px;
+      overflow-y: auto;
+      background: #222;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    .msg { margin: 5px 0; }
+    .user { color: #0f0; }
+    .bot { color: #0af; }
+    #inputForm {
+      display: flex;
+      margin-top: 10px;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      border-radius: 5px;
+      border: none;
+      margin-right: 5px;
+    }
+    button {
+      padding: 10px;
+      border: none;
+      background: #0af;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<div id="chat">
+  <div id="messages"></div>
+  <form id="inputForm">
+    <input type="text" id="userInput" placeholder="Say something..." required />
+    <button type="submit">Send</button>
+  </form>
+</div>
+
+<script type="module">
+  import * as THREE from 'https://cdn.skypack.dev/three@0.152.2';
+
+  // === Three.js Scene Setup ===
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight*0.6, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('scene') });
+  renderer.setSize(window.innerWidth, window.innerHeight * 0.6);
+
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(5, 10, 7.5);
+  scene.add(light);
+
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const material = new THREE.MeshStandardMaterial({ color: 0x00aaff });
+  const cube = new THREE.Mesh(geometry, material);
+  scene.add(cube);
+
+  camera.position.z = 3;
+
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  }
+
+  animate();
+
+  // === Chat Interface Logic ===
+  const form = document.getElementById('inputForm');
+  const input = document.getElementById('userInput');
+  const messages = document.getElementById('messages');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const userMessage = input.value.trim();
+    if (!userMessage) return;
+
+    addMessage('user', userMessage);
+    input.value = '';
+
+    cube.scale.y = 1.2; // Animate cube as talking
+    const response = await getChatbotReply(userMessage);
+    cube.scale.y = 1;
+
+    addMessage('bot', response);
+  });
+
+  function addMessage(sender, text) {
+    const msg = document.createElement('div');
+    msg.className = `msg ${sender}`;
+    msg.textContent = `${sender === 'user' ? 'You' : 'Bot'}: ${text}`;
+    messages.appendChild(msg);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  async function getChatbotReply(message) {
+    const apiKey = 'YOUR_OPENAI_API_KEY'; // <-- Replace with your key
+    const url = 'https://api.openai.com/v1/chat/completions';
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    };
+
+    const body = JSON.stringify({
+      model: "gpt-3.5-turbo", // or gpt-4
+      messages: [{ role: "system", content: "You are a helpful, friendly 3D chatbot." }, { role: "user", content: message }],
+      temperature: 0.7
+    });
+
+    try {
+      const res = await fetch(url, { method: 'POST', headers, body });
+      const data = await res.json();
+      return data.choices[0].message.content.trim();
+    } catch (err) {
+      console.error(err);
+      return "Oops! Something went wrong.";
+    }
+  }
+</script>
+
+</body>
+</html>
